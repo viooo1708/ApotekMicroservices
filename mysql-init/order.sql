@@ -1,0 +1,4 @@
+CREATE TABLE orders(
+ id INT AUTO_INCREMENT PRIMARY KEY,
+ total INT
+);
