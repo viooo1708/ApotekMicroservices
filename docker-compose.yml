@@ -1,8 +1,8 @@
 version: "3.8"
 
 services:
-  auth-service:
-    build: ./auth-service
+  auth-services:
+    build: ./auth-services
     ports: ["3001:3001"]
     depends_on: [auth-db]
 
@@ -14,8 +14,8 @@ services:
     volumes:
       - ./mysql-init/auth.sql:/docker-entrypoint-initdb.d/init.sql
 
-  product-service:
-    build: ./product-service
+  product-services:
+    build: ./product-services
     ports: ["3002:3002"]
     depends_on: [product-db]
 
@@ -27,8 +27,8 @@ services:
     volumes:
       - ./mysql-init/product.sql:/docker-entrypoint-initdb.d/init.sql
 
-  cart-service:
-    build: ./cart-service
+  cart-services:
+    build: ./cart-services
     ports: ["3003:3003"]
     depends_on: [cart-db]
 
@@ -40,8 +40,8 @@ services:
     volumes:
       - ./mysql-init/cart.sql:/docker-entrypoint-initdb.d/init.sql
 
-  order-service:
-    build: ./order-service
+  order-services:
+    build: ./order-services
     ports: ["3004:3004"]
     depends_on: [order-db]
 
@@ -52,3 +52,18 @@ services:
       MYSQL_DATABASE: order_db
     volumes:
       - ./mysql-init/order.sql:/docker-entrypoint-initdb.d/init.sql
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    ports:
+      - "8080:80"
+    environment:
+      PMA_ARBITRARY: 1
+      PMA_HOSTS: auth-db,product-db,cart-db,order-db
+      PMA_USER: root
+      PMA_PASSWORD: root
+    depends_on:
+      - auth-db
+      - product-db
+      - cart-db
+      - order-db
