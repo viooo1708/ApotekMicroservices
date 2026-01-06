@@ -1,6 +1,12 @@
-FROM python:3.10
+
+FROM node:18
+
 WORKDIR /app
+COPY package*.json ./
+RUN npm install
+
 COPY . .
-RUN pip install flask mysql-connector-python
-EXPOSE 3002
-CMD ["python","app.py"]
+EXPOSE 8001
+
+CMD ["node", "app.js"]
+

@@ -1,67 +1,92 @@
 services:
-  auth-services:
-    build: ./auth-services
-    ports: ["3001:3001"]
-    depends_on: [auth-db]
 
-  auth-db:
+  # ================= DATABASES =================
+  mysql-db:
     image: mysql:8
+    container_name: mysql-db
+    restart: always
     environment:
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: auth_db
-    volumes:
-      - ./mysql-init/auth.sql:/docker-entrypoint-initdb.d/init.sql
-
-  product-services:
-    build: ./product-services
-    ports: ["3002:3002"]
-    depends_on: [product-db]
-
-  product-db:
-    image: mysql:8
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: product_db
-    volumes:
-      - ./mysql-init/product.sql:/docker-entrypoint-initdb.d/init.sql
-
-  cart-services:
-    build: ./cart-services
-    ports: ["3003:3003"]
-    depends_on: [cart-db]
-
-  cart-db:
-    image: mysql:8
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: cart_db
-    volumes:
-      - ./mysql-init/cart.sql:/docker-entrypoint-initdb.d/init.sql
-
-  order-services:
-    build: ./order-services
-    ports: ["3004:3004"]
-    depends_on: [order-db]
-
-  order-db:
-    image: mysql:8
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: order_db
-    volumes:
-      - ./mysql-init/order.sql:/docker-entrypoint-initdb.d/init.sql
+      MYSQL_DATABASE: apotek_product
+    ports:
+      - "3306:3306"
 
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
+    restart: always
     ports:
       - "8080:80"
     environment:
-      PMA_ARBITRARY: 1
-      PMA_HOSTS: auth-db,product-db,cart-db,order-db
+      PMA_HOST: mysql-db
       PMA_USER: root
       PMA_PASSWORD: root
     depends_on:
-      - auth-db
-      - product-db
-      - cart-db
-      - order-db
+      - mysql-db
+
+  postgres-db:
+    image: postgres:15
+    container_name: postgres-db
+    restart: always
+    environment:
+      POSTGRES_USER: useradmin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: apotek_user
+    ports:
+      - "5432:5432"
+
+  mongo-db:
+    image: mongo:6
+    container_name: mongo-db
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  redis-db:
+    image: redis:7
+    container_name: redis-db
+    restart: always
+    ports:
+      - "6379:6379"
+
+  # ================= SERVICES =================
+  product-services:
+    build: ./product-services
+    container_name: product-services
+    restart: always
+    ports:
+      - "8001:8001"
+    depends_on:
+      - mysql-db
+
+  user-services:
+    build: ./user-services
+    container_name: user-services
+    restart: always
+    ports:
+      - "4000:4000"
+    depends_on:
+      - postgres-db
+
+  transaction-services:
+    build: ./transaction-services
+    container_name: transaction-services
+    restart: always
+    ports:
+      - "5001:5001"
+    depends_on:
+      - redis-db
+
+  review-report-services:
+    build: ./review-report-services
+    container_name: review-report-services
+    restart: always
+    ports:
+      - "5002:5002"
+    depends_on:
+      - mongo-db
+
+volumes:
+  mongo_data:
