@@ -1,0 +1,133 @@
+const express = require("express");
+const redis = require("redis");
+
+const app = express();
+app.use(express.json());
+
+// Connect to Redis
+const client = redis.createClient({ url: "redis://redis-db:6379" });
+
+client.on("error", (err) => console.log("Redis Client Error", err));
+
+(async () => {
+  try {
+    await client.connect();
+    console.log("Connected to Redis");
+  } catch (err) {
+    console.error("Redis connection failed", err);
+  }
+})();
+
+// =================== GET ALL TRANSACTIONS ===================
+app.get("/transactions", async (req, res) => {
+  try {
+    let cursor = 0;
+    let keys = [];
+
+    // Scan semua key transaction:*
+    do {
+      const reply = await client.scan(cursor, { MATCH: "transaction:*", COUNT: 100 });
+      cursor = Number(reply.cursor);
+      keys = keys.concat(reply.keys);
+    } while (cursor !== 0);
+
+    if (keys.length === 0) return res.json({ success: true, data: [] });
+
+    // Ambil semua value
+    const pipeline = client.multi();
+    keys.forEach((key) => pipeline.get(key));
+    const results = await pipeline.exec();
+
+    const transactions = results
+      .map(([err, value]) => {
+        if (err) return null;
+        try {
+          return JSON.parse(value);
+        } catch {
+          return null;
+        }
+      })
+      .filter((t) => t !== null);
+
+    res.json({ success: true, data: transactions });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// =================== CREATE / ADD TRANSACTION ===================
+app.post("/transactions", async (req, res) => {
+  try {
+    const { trx, items, payment_method, note } = req.body;
+
+    if (!trx || !items || !Array.isArray(items) || !payment_method) {
+      return res.status(400).json({ success: false, message: "trx, items, and payment_method are required" });
+    }
+
+    const transactionData = {
+      trx,
+      items,
+      payment_method,
+      note: note || "",
+      created_at: new Date().toISOString(),
+    };
+
+    await client.set(`transaction:${trx}`, JSON.stringify(transactionData));
+    res.json({ success: true, message: "Transaction saved", data: transactionData });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// =================== READ / GET SINGLE TRANSACTION ===================
+app.get("/transactions/:trx", async (req, res) => {
+  try {
+    const { trx } = req.params;
+    const data = await client.get(`transaction:${trx}`);
+    if (!data) return res.status(404).json({ success: false, message: "Transaction not found" });
+
+    res.json({ success: true, data: JSON.parse(data) });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// =================== UPDATE TRANSACTION ===================
+app.put("/transactions", async (req, res) => {
+  try {
+    const { trx, items, payment_method, note } = req.body;
+
+    const existing = await client.get(`transaction:${trx}`);
+    if (!existing) return res.status(404).json({ success: false, message: "Transaction not found" });
+
+    const updatedData = {
+      ...JSON.parse(existing),
+      items: items || JSON.parse(existing).items,
+      payment_method: payment_method || JSON.parse(existing).payment_method,
+      note: note !== undefined ? note : JSON.parse(existing).note,
+    };
+
+    await client.set(`transaction:${trx}`, JSON.stringify(updatedData));
+    res.json({ success: true, message: "Transaction updated", data: updatedData });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// =================== DELETE TRANSACTION ===================
+app.delete("/transactions/:trx", async (req, res) => {
+  try {
+    const { trx } = req.params;
+    const deleted = await client.del(`transaction:${trx}`);
+    if (!deleted) return res.status(404).json({ success: false, message: "Transaction not found" });
+
+    res.json({ success: true, message: "Transaction deleted" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// =================== START SERVER ===================
+app.listen(5001, "0.0.0.0", () => {
+  console.log("Transaction service running on port 5001");
+});

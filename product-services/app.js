@@ -9,7 +9,7 @@ const db = mysql.createPool({
   host: "mysql-db",          // nama service MySQL di docker-compose
   user: "root",
   password: "root",
-  database: "apotek_product",
+  database: "productdb",
   waitForConnections: true,
   connectionLimit: 10,
 });

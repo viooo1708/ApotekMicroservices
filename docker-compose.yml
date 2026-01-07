@@ -6,15 +6,14 @@ services:
     container_name: mysql-db
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: apotek_product
+      MYSQL_ROOT_PASSWORD: root 
+      MYSQL_DATABASE: productdb
     ports:
       - "3306:3306"
 
   phpmyadmin:
-    image: phpmyadmin/phpmyadmin
+    image: phpmyadmin/phpmyadmin:latest
     container_name: phpmyadmin
-    restart: always
     ports:
       - "8080:80"
     environment:
@@ -26,8 +25,6 @@ services:
 
   postgres-db:
     image: postgres:15
-    container_name: postgres-db
-    restart: always
     environment:
       POSTGRES_USER: useradmin
       POSTGRES_PASSWORD: admin123
@@ -35,14 +32,38 @@ services:
     ports:
       - "5432:5432"
 
-  mongo-db:
-    image: mongo:6
-    container_name: mongo-db
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
     restart: always
     ports:
+      - "8082:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    depends_on:
+      - postgres-db
+
+
+  mongo-db:
+    image: mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root123
+      MONGO_INITDB_DATABASE: reviewdb
+    ports:
       - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
+
+  mongo-express:
+    image: mongo-express
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_BASICAUTH: "true"
+      ME_CONFIG_BASICAUTH_USERNAME: root
+      ME_CONFIG_BASICAUTH_PASSWORD: root123
+      ME_CONFIG_MONGODB_URL: mongodb://root:root123@mongo-db:27017/?authSource=admin
+
 
   redis-db:
     image: redis:7
@@ -50,6 +71,15 @@ services:
     restart: always
     ports:
       - "6379:6379"
+
+  redisinsight:
+    image: redislabs/redisinsight
+    container_name: redisinsight
+    restart: always
+    ports:
+      - "8005:8001"
+    depends_on:
+      - redis-db
 
   # ================= SERVICES =================
   product-services:
@@ -90,3 +120,4 @@ services:
 
 volumes:
   mongo_data:
+  

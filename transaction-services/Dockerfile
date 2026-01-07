@@ -1,10 +1,17 @@
-FROM node:18-alpine
+# Gunakan Node 20 LTS
+FROM node:20
 
 WORKDIR /app
 
-RUN npm init -y
-RUN npm install express redis
+# Copy package.json dulu
+COPY package.json ./
 
+# Install dependencies
+RUN npm install --legacy-peer-deps
+
+# Copy seluruh source code
 COPY . .
 
-CMD ["node","app.js"]
+EXPOSE 5001
+
+CMD ["node", "index.js"]

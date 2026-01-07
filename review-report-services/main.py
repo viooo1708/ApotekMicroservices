@@ -11,7 +11,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.post("/review")
+@app.post("/reviews")
 def create_review(
     product_id: int = Form(...),
     review: str = Form(...),

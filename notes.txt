@@ -1,0 +1,24 @@
+untuk masuk ke postgre, gunakan bash:
+1. docker exec -it apotekmicroservices-postgres-db-1 bash
+2. psql -U useradmin -d apotek_user
+3. CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    role VARCHAR(50) NOT NULL,
+    email VARCHAR(100),
+    phone VARCHAR(20),
+    shift VARCHAR(20) CHECK (shift IN ('pagi', 'malam'))
+);
+4. INSERT INTO users (name, role, email, phone, shift)
+VALUES ('Ayu Rahma', 'Kasir', 'ayu@example.com', '081234567890', 'pagi');
+5. SELECT * FROM users;
+
+
+untuk masuk ke mongo, gunakan bash :
+1. docker exec -it mongo-db mongosh -u root -p root123 --authenticationDatabase admin
+2. use reviewdb
+3. db.createCollection("review")
+
+untuk masuk ke redis, gunakan bash :
+1. docker exec -it redis-db redis-cli
+2. KEYS transaction:*
