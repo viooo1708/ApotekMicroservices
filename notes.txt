@@ -1,17 +1,17 @@
 untuk masuk ke postgre, gunakan bash:
-1. docker exec -it apotekmicroservices-postgres-db-1 bash
+1. docker exec -it postgres-db bash
 2. psql -U useradmin -d apotek_user
 3. CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     role VARCHAR(50) NOT NULL,
     email VARCHAR(100),
-    password VARCHAR(25),
+    password VARCHAR(200),
     phone VARCHAR(20),
     shift VARCHAR(20) CHECK (shift IN ('pagi', 'malam'))
 );
 4. INSERT INTO users (name, role, email, password, phone, shift)
-VALUES ('Ayu Rahma', 'Kasir', 'ayu@example.com', '123456','081234567890', 'pagi');
+VALUES ('Ayu Rahma', 'Owner', 'ayu@example.com', '123456','081234567890', 'pagi');
 5. SELECT * FROM users;
 
 
@@ -23,3 +23,18 @@ untuk masuk ke mongo, gunakan bash :
 untuk masuk ke redis, gunakan bash :
 1. docker exec -it redis-db redis-cli
 2. KEYS transaction:*
+
+untuk masuk ke MySQL, gunakan bash :
+1. docker exec -it mysql-db mysql -u root -p
+2. password nya root
+3. USE productdb
+4. CREATE TABLE products (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    category VARCHAR(100) NOT NULL,
+    price DECIMAL(10,2) NOT NULL,
+    stock INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+5. INSERT INTO products (name, category, price, stock)
+VALUES ('Paracetamol', 'Obat', 15000, 100);
