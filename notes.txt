@@ -6,11 +6,12 @@ untuk masuk ke postgre, gunakan bash:
     name VARCHAR(100) NOT NULL,
     role VARCHAR(50) NOT NULL,
     email VARCHAR(100),
+    password VARCHAR(25),
     phone VARCHAR(20),
     shift VARCHAR(20) CHECK (shift IN ('pagi', 'malam'))
 );
-4. INSERT INTO users (name, role, email, phone, shift)
-VALUES ('Ayu Rahma', 'Kasir', 'ayu@example.com', '081234567890', 'pagi');
+4. INSERT INTO users (name, role, email, password, phone, shift)
+VALUES ('Ayu Rahma', 'Kasir', 'ayu@example.com', '123456','081234567890', 'pagi');
 5. SELECT * FROM users;
 
 

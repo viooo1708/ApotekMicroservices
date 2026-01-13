@@ -2,6 +2,10 @@ const express = require("express");
 const { Pool } = require("pg");
 const bcrypt = require("bcrypt");
 const app = express();
+const jwt = require("jsonwebtoken");
+const cors = require("cors");
+
+app.use(cors());
 
 app.use(express.json());
 
@@ -11,6 +15,89 @@ const pool = new Pool({
   user: "useradmin",
   password: "admin123",
   database: "apotek_user",
+});
+
+// ================= REGISTER =================
+app.post("/register", async (req, res) => {
+  try {
+    const { name, role, email, phone, shift, password } = req.body;
+
+    if (!name || !role || !email || !phone || !shift || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "name, role, email, phone, shift, and password are required",
+      });
+    }
+
+    // Cek email duplicate
+    const check = await pool.query("SELECT id FROM users WHERE email=$1", [email]);
+    if (check.rows.length > 0) {
+      return res.status(400).json({ success: false, message: "Email already exists" });
+    }
+
+    const hashed = await bcrypt.hash(password, 10);
+
+    const inserted = await pool.query(
+      `INSERT INTO users(name, role, email, phone, shift, password)
+       VALUES($1,$2,$3,$4,$5,$6) RETURNING id, name, role, email, phone, shift`,
+      [name, role, email, phone, shift, hashed]
+    );
+
+    res.json({
+      success: true,
+      message: "User registered",
+      data: inserted.rows[0],
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ================= LOGIN =================
+app.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: "Email and password are required" });
+    }
+
+    const r = await pool.query("SELECT * FROM users WHERE email=$1", [email]);
+
+    if (r.rows.length === 0) {
+      return res.status(401).json({ success: false, message: "Invalid email or password" });
+    }
+
+    const user = r.rows[0];
+
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) {
+      return res.status(401).json({ success: false, message: "Invalid email or password" });
+    }
+
+    // Generate JWT
+    const token = jwt.sign(
+      {
+        id: user.id,
+        name: user.name,
+        role: user.role,
+      },
+      "SECRETKEYJWT",
+      { expiresIn: "1d" }
+    );
+
+    // hapus password dari response
+    delete user.password;
+
+    res.json({
+      success: true,
+      message: "Login successful",
+      token,
+      data: user,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 // ================= GET Semua User =================
@@ -116,35 +203,6 @@ app.delete("/users/:id", async (req, res) => {
     }
 
     res.json({ success: true, message: "User deleted" });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// ================= LOGIN =================
-app.post("/login", async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: "Email and password are required" });
-    }
-
-    const r = await pool.query("SELECT * FROM users WHERE email=$1", [email]);
-
-    if (r.rows.length === 0) {
-      return res.status(401).json({ success: false, message: "Invalid email or password" });
-    }
-
-    const user = r.rows[0];
-
-    // Compare password yang diinput dengan hash di DB
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) {
-      return res.status(401).json({ success: false, message: "Invalid email or password" });
-    }
-
-    res.json({ success: true, message: "Login successful", data: user });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
