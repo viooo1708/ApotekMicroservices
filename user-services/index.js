@@ -20,26 +20,63 @@ const pool = new Pool({
 // ================= REGISTER =================
 app.post("/register", async (req, res) => {
   try {
-    const { name, role, email, phone, shift, password } = req.body;
+    let { name, role, email, phone, shift, password } = req.body;
 
-    if (!name || !role || !email || !phone || !shift || !password) {
+    // default role = owner jika tidak dikirim
+    if (!role) {
+      role = "owner";
+    }
+
+    // validasi field umum
+    if (!name || !email || !phone || !password) {
       return res.status(400).json({
         success: false,
-        message: "name, role, email, phone, shift, and password are required",
+        message: "name, email, phone, and password are required",
       });
     }
 
-    // Cek email duplicate
-    const check = await pool.query("SELECT id FROM users WHERE email=$1", [email]);
-    if (check.rows.length > 0) {
-      return res.status(400).json({ success: false, message: "Email already exists" });
+    // jika apoteker → shift wajib
+    if (role === "apoteker" && !shift) {
+      return res.status(400).json({
+        success: false,
+        message: "shift is required for apoteker role",
+      });
     }
 
+    // jika owner → shift null saja
+    if (role === "owner") {
+      shift = null;
+    }
+
+    // batasi role hanya 2
+    if (role !== "owner" && role !== "apoteker") {
+      return res.status(400).json({
+        success: false,
+        message: "Role must be owner or apoteker",
+      });
+    }
+
+    // cek email duplicate
+    const check = await pool.query(
+      "SELECT id FROM users WHERE email=$1",
+      [email]
+    );
+
+    if (check.rows.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Email already exists",
+      });
+    }
+
+    // hash password
     const hashed = await bcrypt.hash(password, 10);
 
+    // simpan
     const inserted = await pool.query(
       `INSERT INTO users(name, role, email, phone, shift, password)
-       VALUES($1,$2,$3,$4,$5,$6) RETURNING id, name, role, email, phone, shift`,
+       VALUES($1,$2,$3,$4,$5,$6)
+       RETURNING id, name, role, email, phone, shift`,
       [name, role, email, phone, shift, hashed]
     );
 
@@ -48,10 +85,15 @@ app.post("/register", async (req, res) => {
       message: "User registered",
       data: inserted.rows[0],
     });
+
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 });
+
 
 // ================= LOGIN =================
 app.post("/login", async (req, res) => {
