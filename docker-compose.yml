@@ -76,7 +76,7 @@ services:
     container_name: redis-db
     restart: always
     ports:
-      - "6380:6379"
+      - "6350:6350"
     volumes:
       - redis_data:/data
 
