@@ -1,9 +1,11 @@
 from fastapi import FastAPI, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from bson import ObjectId
 from database import reviews_collection
 
 app = FastAPI(title="Review Report Service")
 
+# ===================== CORS =====================
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -11,6 +13,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ===================== HELPER =====================
+def serialize_review(review):
+    review["_id"] = str(review["_id"])
+    return review
+
+# ===================== CREATE REVIEW =====================
 @app.post("/reviews")
 def create_review(
     product_id: int = Form(...),
@@ -27,25 +35,45 @@ def create_review(
     }
 
     result = reviews_collection.insert_one(data)
-    data["_id"] = str(result.inserted_id)  # Convert ObjectId to string
-    return {"success": True, "data": data}
+    data["_id"] = str(result.inserted_id)
 
+    return {
+        "success": True,
+        "data": data
+    }
+
+# ===================== GET ALL REVIEWS =====================
 @app.get("/reviews")
 def get_reviews():
+    reviews = reviews_collection.find()
     return {
         "success": True,
-        "data": list(reviews_collection.find({}, {"_id": 0}))
+        "data": [serialize_review(r) for r in reviews]
     }
 
-@app.get("/reviews/{product_id}")
+# ===================== GET REVIEWS BY PRODUCT =====================
+@app.get("/reviews/product/{product_id}")
 def get_reviews_by_product(product_id: int):
-    reviews = list(reviews_collection.find({"product_id": product_id}, {"_id": 0}))
+    reviews = reviews_collection.find({"product_id": product_id})
     return {
         "success": True,
-        "data": reviews
+        "data": [serialize_review(r) for r in reviews]
     }
 
-@app.put("/review/{review_id}")
+# ===================== GET REVIEW BY ID =====================
+@app.get("/reviews/{review_id}")
+def get_review_by_id(review_id: str):
+    review = reviews_collection.find_one({"_id": ObjectId(review_id)})
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+
+    return {
+        "success": True,
+        "data": serialize_review(review)
+    }
+
+# ===================== UPDATE REVIEW =====================
+@app.put("/reviews/{review_id}")
 def update_review(
     review_id: str,
     review: str = Form(...),
@@ -54,19 +82,28 @@ def update_review(
     if rating < 1 or rating > 5:
         raise HTTPException(status_code=400, detail="Rating must be 1-5")
 
-    from bson import ObjectId
     result = reviews_collection.update_one(
         {"_id": ObjectId(review_id)},
         {"$set": {"review": review, "rating": rating}}
     )
+
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Review not found")
-    return {"success": True, "message": "Review updated"}
 
-@app.delete("/review/{review_id}")
+    return {
+        "success": True,
+        "message": "Review updated"
+    }
+
+# ===================== DELETE REVIEW =====================
+@app.delete("/reviews/{review_id}")
 def delete_review(review_id: str):
-    from bson import ObjectId
     result = reviews_collection.delete_one({"_id": ObjectId(review_id)})
+
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Review not found")
-    return {"success": True, "message": "Review deleted"}
+
+    return {
+        "success": True,
+        "message": "Review deleted"
+    }

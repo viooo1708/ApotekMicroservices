@@ -21,39 +21,40 @@ client.on("error", (err) => console.log("Redis Client Error", err));
 // =================== GET ALL TRANSACTIONS ===================
 app.get("/transactions", async (req, res) => {
   try {
-    let cursor = 0;
-    let keys = [];
+    const keys = [];
 
-    // Scan semua key transaction:*
-    do {
-      const reply = await client.scan(cursor, { MATCH: "transaction:*", COUNT: 100 });
-      cursor = Number(reply.cursor);
-      keys = keys.concat(reply.keys);
-    } while (cursor !== 0);
+    for await (const key of client.scanIterator({
+      MATCH: "transaction:*",
+      COUNT: 100,
+    })) {
+      keys.push(key);
+    }
 
-    if (keys.length === 0) return res.json({ success: true, data: [] });
+    if (keys.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
 
-    // Ambil semua value
-    const pipeline = client.multi();
-    keys.forEach((key) => pipeline.get(key));
-    const results = await pipeline.exec();
+    const values = await client.mGet(keys);
 
-    const transactions = results
-      .map(([err, value]) => {
-        if (err) return null;
+    const transactions = values
+      .map((val) => {
         try {
-          return JSON.parse(value);
+          return JSON.parse(val);
         } catch {
           return null;
         }
       })
-      .filter((t) => t !== null);
+      .filter(Boolean);
 
-    res.json({ success: true, data: transactions });
+    res.json({
+      success: true,
+      data: transactions,
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
+
 
 // =================== CREATE / ADD TRANSACTION ===================
 app.post("/transactions", async (req, res) => {
