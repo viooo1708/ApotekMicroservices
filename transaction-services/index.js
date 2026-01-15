@@ -55,6 +55,65 @@ app.get("/transactions", async (req, res) => {
   }
 });
 
+// =================== REPORT TRANSACTIONS (OWNER) ===================
+app.get("/reports/transactions", async (req, res) => {
+  try {
+    let cursor = 0;
+    let keys = [];
+
+    do {
+      const reply = await client.scan(cursor, {
+        MATCH: "transaction:*",
+        COUNT: 100,
+      });
+      cursor = Number(reply.cursor);
+      keys = keys.concat(reply.keys);
+    } while (cursor !== 0);
+
+    if (keys.length === 0) {
+      return res.json({
+        success: true,
+        summary: {
+          total_transaksi: 0,
+          total_pendapatan: 0,
+        },
+        data: [],
+      });
+    }
+
+    const pipeline = client.multi();
+    keys.forEach((key) => pipeline.get(key));
+    const results = await pipeline.exec();
+
+    let totalPendapatan = 0;
+    let transactions = [];
+
+    results.forEach(([err, value]) => {
+      if (err || !value) return;
+      const trx = JSON.parse(value);
+
+      trx.items.forEach((item) => {
+        totalPendapatan += item.qty * item.price;
+      });
+
+      transactions.push(trx);
+    });
+
+    res.json({
+      success: true,
+      summary: {
+        total_transaksi: transactions.length,
+        total_pendapatan: totalPendapatan,
+      },
+      data: transactions,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+
+
 // =================== CREATE / ADD TRANSACTION ===================
 app.post("/transactions", async (req, res) => {
   try {
@@ -93,12 +152,14 @@ app.get("/transactions/:trx", async (req, res) => {
 });
 
 // =================== UPDATE TRANSACTION ===================
-app.put("/transactions", async (req, res) => {
+app.put("/transactions/:trx", async (req, res) => {
   try {
-    const { trx, items, payment_method, note } = req.body;
+    const { trx } = req.params; // ambil trx dari URL
+    const { items, payment_method, note } = req.body;
 
     const existing = await client.get(`transaction:${trx}`);
-    if (!existing) return res.status(404).json({ success: false, message: "Transaction not found" });
+    if (!existing)
+      return res.status(404).json({ success: false, message: "Transaction not found" });
 
     const updatedData = {
       ...JSON.parse(existing),
