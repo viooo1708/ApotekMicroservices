@@ -1,7 +1,11 @@
 const express = require("express");
 const mysql = require("mysql2/promise");
+const cors = require("cors"); // ⬅️ TAMBAH
 
 const app = express();
+
+// ================= MIDDLEWARE =================
+app.use(cors());              // ⬅️ WAJIB UNTUK FLUTTER WEB
 app.use(express.json());
 
 // ================= DB CONNECTION =================
