@@ -201,11 +201,25 @@ app.put("/users/:id", async (req, res) => {
     const { id } = req.params;
     const { name, role, email, phone, shift, password } = req.body;
 
-    if (!name || !role || !email || !phone || !shift) {
+    if (!name || !role || !email || !phone) {
       return res.status(400).json({
         success: false,
-        message: "name, role, email, phone, and shift are required",
+        message: "name, role, email, phone,are required",
       });
+    }
+
+    // cek shift wajib untuk apoteker
+    let finalShift = shift;
+    if (role === "apoteker" && !shift) {
+      return res.status(400).json({
+        success: false,
+        message: "shift is required for apoteker role",
+      });
+    }
+
+    // owner shift = null
+    if (role === "owner") {
+      finalShift = null;
     }
 
     let hashedPassword = null;
@@ -213,15 +227,18 @@ app.put("/users/:id", async (req, res) => {
       hashedPassword = await bcrypt.hash(password, 10);
     }
 
-    const result = await pool.query(
-      `UPDATE users
-       SET name=$1, role=$2, email=$3, phone=$4, shift=$5
-       ${hashedPassword ? ", password=$6" : ""}
-       WHERE id=$7`,
-      hashedPassword
-        ? [name, role, email, phone, shift, hashedPassword, id]
-        : [name, role, email, phone, shift, id]
-    );
+    let query = "UPDATE users SET name=$1, role=$2, email=$3, phone=$4, shift=$5";
+    let params = [name, role, email, phone, finalShift];
+
+    if (hashedPassword) {
+      query += ", password=$6 WHERE id=$7";
+      params.push(hashedPassword, id);
+    } else {
+      query += " WHERE id=$6";
+      params.push(id);
+    }
+
+    const result = await pool.query(query, params);
 
     if (result.rowCount === 0) {
       return res.status(404).json({ success: false, message: "User not found" });
