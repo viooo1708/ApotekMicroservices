@@ -1,17 +1,18 @@
-# Gunakan Node 20 LTS
-FROM node:20
+FROM php:8.2-cli
 
 WORKDIR /app
 
-# Copy package.json dulu
-COPY package.json ./
+# Install system deps
+RUN apt-get update && apt-get install -y unzip git
 
-# Install dependencies
-RUN npm install --legacy-peer-deps
+# Install Composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Copy seluruh source code
+COPY composer.json ./
+RUN composer install
+
 COPY . .
 
 EXPOSE 5001
 
-CMD ["node", "index.js"]
+CMD ["php", "-S", "0.0.0.0:5001", "index.php"]
